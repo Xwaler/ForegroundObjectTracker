@@ -1,0 +1,13 @@
+pyproject.toml
+setup.py
+src/ForegroundObjectTracker/C_SOF.py
+src/ForegroundObjectTracker/DOF.py
+src/ForegroundObjectTracker/Detection.py
+src/ForegroundObjectTracker/OF.py
+src/ForegroundObjectTracker/SOF.py
+src/ForegroundObjectTracker/__init__.py
+src/ForegroundObjectTracker.egg-info/PKG-INFO
+src/ForegroundObjectTracker.egg-info/SOURCES.txt
+src/ForegroundObjectTracker.egg-info/dependency_links.txt
+src/ForegroundObjectTracker.egg-info/requires.txt
+src/ForegroundObjectTracker.egg-info/top_level.txt
