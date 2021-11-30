@@ -5,21 +5,13 @@ from abc import ABC, abstractmethod
 from .Detection import Detection
 
 
-class OF(ABC):
+class BaseObjectTracker(ABC):
     """
     Abstract class
     Foreground Object Tracker implemented with several optical flow algorithms
     """
 
     def __init__(self):
-        self.OPTICAL_FLOW_GRID_SIZE = 15
-        self.LK_PARAMS = {
-            'winSize': (21, 21),
-            'maxLevel': 3,
-            'criteria': (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01)
-        }
-        self.RANSAC_PROJECTION_THRESHOLD = 10.
-
         self.GAUSSIAN_THRESHOLD_WINDOW = 31
         self.GAUSSIAN_THRESHOLD_C = 16
 
@@ -56,46 +48,6 @@ class OF(ABC):
                 yield frame
         video.release()
 
-    def compute_sparse_points_to_track(self, w, h):
-        self.sparse_points_to_track = np.concatenate(
-            [
-                np.linspace([[0, j]], [[w, j]], self.OPTICAL_FLOW_GRID_SIZE).astype(int)
-                for j in range(0, h, h // self.OPTICAL_FLOW_GRID_SIZE)
-            ],
-            dtype=np.float32
-        )
-
-    def filter_best_points_to_track(self):
-        return np.array([
-            [[x, y]] for [[x, y]] in self.sparse_points_to_track
-            if not any(
-                detection.x <= x <= detection.x + detection.w and detection.y <= y <= detection.y + detection.h
-                for detection in self.known_detections
-            )
-        ])
-
-    def apply_sparse_optical_flow(self, points_to_track):
-        previous_gray = cv2.cvtColor(self.previous_frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-
-        if len(points_to_track) >= 4:
-            next_, status, error = cv2.calcOpticalFlowPyrLK(
-                previous_gray, gray, points_to_track, None, **self.LK_PARAMS
-            )
-            good_prev = points_to_track[status == 1]
-            good_next = next_[status == 1]
-
-            if len(good_next) >= 4:
-                homography_matrix, _ = cv2.findHomography(
-                    good_prev, good_next, method=cv2.RANSAC, ransacReprojThreshold=self.RANSAC_PROJECTION_THRESHOLD
-                )
-                warped_previous_gray = cv2.warpPerspective(previous_gray, homography_matrix,
-                                                           dsize=previous_gray.shape[:2][::-1],
-                                                           borderMode=cv2.BORDER_REPLICATE)
-                warped_diff = cv2.absdiff(warped_previous_gray, gray)
-                return warped_diff, homography_matrix
-        return previous_gray, np.identity(3, dtype=np.float32)
-
     def project_detections_on_new_plane(self, homography):
         rot_scaling_mat = homography[:2, :2]
         translation_vec = homography[:2, 2:]
@@ -103,13 +55,6 @@ class OF(ABC):
         normalization = homography[2, 2]
         for detection in self.known_detections:
             detection.apply_homography(rot_scaling_mat, translation_vec, projection_vec, normalization)
-
-    def apply_dense_optical_flow(self):
-        previous_gray_frame = cv2.cvtColor(self.previous_frame, cv2.COLOR_BGR2GRAY)
-        gray_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        flow = cv2.calcOpticalFlowFarneback(previous_gray_frame, gray_frame, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-        magnitude, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-        return cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
     def apply_gaussian_threshold(self, img):
         return cv2.adaptiveThreshold(

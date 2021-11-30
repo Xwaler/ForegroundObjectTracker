@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="ForegroundObjectTracker",
-    version="1.0.4",
+    version="1.0.5",
     author="Benjamin MONSERAND",
     author_email="benjamin.monserand@utbm.fr",
     url='https://github.com/Xwaler/ForegroundObjectTracker',

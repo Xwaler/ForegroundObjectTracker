@@ -94,4 +94,4 @@ class Detection:
                     state = nextState
 
     def __repr__(self):
-        return f'Object<Detection> (x:{self.x} y:{self.y} h:{self.w} w:{self.h})'
+        return f'Detection(x={self.x}, y={self.y}, h={self.w}, w={self.h})'

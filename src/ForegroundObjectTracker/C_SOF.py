@@ -1,12 +1,33 @@
 import cv2
 import numpy as np
-from .OF import OF
+from .SOF import SOF
 
 
-class C_SOF(OF):
+class C_SOF(SOF):
     """
     Custom Sparse Optical Flow
     """
+    def __init__(self):
+        super().__init__()
+        self.OPTICAL_FLOW_GRID_SIZE = 15
+
+    def compute_sparse_points_to_track(self, w, h):
+        self.sparse_points_to_track = np.concatenate(
+            [
+                np.linspace([[0, j]], [[w, j]], self.OPTICAL_FLOW_GRID_SIZE).astype(int)
+                for j in range(0, h, h // self.OPTICAL_FLOW_GRID_SIZE)
+            ],
+            dtype=np.float32
+        )
+
+    def filter_best_points_to_track(self):
+        return np.array([
+            [[x, y]] for [[x, y]] in self.sparse_points_to_track
+            if not any(
+                detection.x <= x <= detection.x + detection.w and detection.y <= y <= detection.y + detection.h
+                for detection in self.known_detections
+            )
+        ])
 
     def forward(self, frame, display=True, save_footage=False):
         assert frame is not None, "Frame is None"
@@ -62,7 +83,7 @@ class C_SOF(OF):
 
             if display:
                 resized = self.resize_with_aspect_ratio(processed_frame, width=self.DISPLAY_WINDOW_WIDTH)
-                cv2.imshow('Display', resized)
+                cv2.imshow('Custom Sparse Optical Flow', resized)
                 if display and cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
