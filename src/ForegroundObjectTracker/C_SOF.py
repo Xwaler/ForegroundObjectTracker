@@ -26,7 +26,7 @@ class C_SOF(SOF):
             [[x, y]] for [[x, y]] in self.sparse_points_to_track
             if not any(
                 detection.x <= x <= detection.x + detection.w and detection.y <= y <= detection.y + detection.h
-                for detection in self.known_detections
+                for detection in self._known_detections
             )
         ])
 
@@ -37,11 +37,11 @@ class C_SOF(SOF):
             self.previous_frame = self.frame
             h, w = self.frame.shape[:2]
             self._compute_sparse_points_to_track(w, h)
-            self.filters = np.ceil([
-                self.CONTOUR_MIN_WIDTH_RATIO * w,
-                self.CONTOUR_MAX_WIDTH_RATIO * w,
-                self.CONTOUR_MIN_HEIGHT_RATIO * h,
-                self.CONTOUR_MAX_HEIGHT_RATIO * h,
+            self._filters = np.ceil([
+                self._CONTOUR_MIN_WIDTH_RATIO * w,
+                self._CONTOUR_MAX_WIDTH_RATIO * w,
+                self._CONTOUR_MIN_HEIGHT_RATIO * h,
+                self._CONTOUR_MAX_HEIGHT_RATIO * h,
             ])
             return []
 
@@ -60,9 +60,9 @@ class C_SOF(SOF):
         bounding_rects = self._get_bounding_rects(contours)
         self._assign_rect_to_detections(bounding_rects)
 
-        if self.DISPLAY or self.RENDER:
+        if self._DISPLAY or self._RENDER:
             frame_detections = self.display_detections()
-            if self.DISPLAY == DISPLAY_DEBUG:
+            if self._DISPLAY == DISPLAY_DEBUG:
                 labeled_images = self._add_labels([
                     self.frame,
                     cv2.cvtColor(corrected_frame, cv2.COLOR_GRAY2BGR),
@@ -78,18 +78,18 @@ class C_SOF(SOF):
             else:
                 processed_frame = self._add_labels([frame_detections], ["Detections"])[0]
 
-            if self.RENDER:
-                if self.writer is None:
-                    self.writer = cv2.VideoWriter(
-                        'output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.RENDER_FPS, processed_frame.shape[:2][::-1]
+            if self._RENDER:
+                if self._writer is None:
+                    self._writer = cv2.VideoWriter(
+                        'output.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self._RENDER_FPS, processed_frame.shape[:2][::-1]
                     )
-                self.writer.write(processed_frame)
+                self._writer.write(processed_frame)
 
-            if self.DISPLAY:
-                resized = self._resize_with_aspect_ratio(processed_frame, width=self.DISPLAY_WINDOW_WIDTH)
+            if self._DISPLAY:
+                resized = self._resize_with_aspect_ratio(processed_frame, width=self._DISPLAY_WINDOW_WIDTH)
                 cv2.imshow('Custom Sparse Optical Flow', resized)
                 if cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
         self.previous_frame = self.frame
-        return [detection for detection in self.known_detections if detection._has_sufficient_confidence()]
+        return [detection for detection in self._known_detections if detection._has_sufficient_confidence()]

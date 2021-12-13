@@ -19,33 +19,34 @@ class BaseObjectTracker(ABC):
     """
 
     def __init__(self, display, write_footage):
-        self.GAUSSIAN_THRESHOLD_WINDOW = 31
-        self.GAUSSIAN_THRESHOLD_C = 16
+        self._GAUSSIAN_THRESHOLD_WINDOW = 31
+        self._GAUSSIAN_THRESHOLD_C = 16
 
-        self.BLUR_KERNEL_SIZE = 3
+        self._BLUR_KERNEL_SIZE = 3
 
-        self.MORPHOLOGY_KERNEL_SIZE = 7
-        self.MORPHOLOGY_ITERATIONS = 3
+        self._MORPHOLOGY_KERNEL_SIZE = 7
+        self._MORPHOLOGY_ITERATIONS = 3
 
-        self.IOU_ASSOCIATION_THRESHOLD = 0.20
+        self._IOU_ASSOCIATION_THRESHOLD = 0.20
 
-        self.CONTOUR_MIN_WIDTH_RATIO = .01
-        self.CONTOUR_MAX_WIDTH_RATIO = .50
-        self.CONTOUR_MIN_HEIGHT_RATIO = .01
-        self.CONTOUR_MAX_HEIGHT_RATIO = .50
+        self._CONTOUR_MIN_WIDTH_RATIO = .01
+        self._CONTOUR_MAX_WIDTH_RATIO = .50
+        self._CONTOUR_MIN_HEIGHT_RATIO = .01
+        self._CONTOUR_MAX_HEIGHT_RATIO = .50
 
-        self.DISPLAY = display
-        self.DISPLAY_WINDOW_WIDTH = 1680
-        self.DISPLAY_FPS = 25
-        self.RENDER = write_footage
-        self.RENDER_FPS = 16
+        self._DISPLAY = display
+        self._DISPLAY_WINDOW_WIDTH = 1500
+        self._DISPLAY_FPS = 25
+        self._RENDER = write_footage
+        self._RENDER_FPS = 16
 
-        self.writer = None
+        self._writer = None
+        self._sparse_points_to_track = None
+        self._filters = None
+        self._known_detections = []
+
         self.frame = None
         self.previous_frame = None
-        self.sparse_points_to_track = None
-        self.filters = None
-        self.known_detections = []
 
     @staticmethod
     def _frame_generator(file):
@@ -62,24 +63,24 @@ class BaseObjectTracker(ABC):
         translation_vec = homography[:2, 2:]
         projection_vec = homography[2:, :2]
         normalization = homography[2, 2]
-        for detection in self.known_detections:
+        for detection in self._known_detections:
             detection._apply_homography(rot_scaling_mat, translation_vec, projection_vec, normalization)
 
     def _apply_gaussian_threshold(self, img):
         return cv2.adaptiveThreshold(
             img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-            self.GAUSSIAN_THRESHOLD_WINDOW, -self.GAUSSIAN_THRESHOLD_C
+            self._GAUSSIAN_THRESHOLD_WINDOW, -self._GAUSSIAN_THRESHOLD_C
         )
 
     def _apply_blur(self, img):
-        return cv2.medianBlur(img, self.BLUR_KERNEL_SIZE)
+        return cv2.medianBlur(img, self._BLUR_KERNEL_SIZE)
 
     def _apply_morphology_closing(self, img):
         max_kernel = cv2.getStructuringElement(
-            cv2.MORPH_ELLIPSE, (self.MORPHOLOGY_KERNEL_SIZE, self.MORPHOLOGY_KERNEL_SIZE)
+            cv2.MORPH_ELLIPSE, (self._MORPHOLOGY_KERNEL_SIZE, self._MORPHOLOGY_KERNEL_SIZE)
         )
         return cv2.morphologyEx(img, cv2.MORPH_CLOSE, max_kernel, None, None,
-                                self.MORPHOLOGY_ITERATIONS, cv2.BORDER_REPLICATE)
+                                self._MORPHOLOGY_ITERATIONS, cv2.BORDER_REPLICATE)
 
     @staticmethod
     def _find_contours(img):
@@ -114,7 +115,7 @@ class BaseObjectTracker(ABC):
                 area_inter = w_inter * h_inter
                 area_union = area0 + area1 - area_inter
                 iou = area_inter / (area_union + 1e-16)
-                if iou >= self.IOU_ASSOCIATION_THRESHOLD:
+                if iou >= self._IOU_ASSOCIATION_THRESHOLD:
                     matching_rects.append(rect)
                     if iou > max_iou:
                         max_iou = iou
@@ -123,16 +124,16 @@ class BaseObjectTracker(ABC):
             yield detection, found, max_iou_rect, matching_rects
 
     def _assign_rect_to_detections(self, remaining_rects):
-        min_w, max_w, min_h, max_h = self.filters
+        min_w, max_w, min_h, max_h = self._filters
         remaining_rects = sorted(
             [r for r in remaining_rects if max_w >= r[2] >= min_w and max_h >= r[3] >= min_h],
             key=lambda r: r[2] * r[3], reverse=True
         )
 
-        if len(self.known_detections):
-            self.known_detections.sort(key=lambda x: x.w * x.h, reverse=True)
-            previous_known_detections = self.known_detections.copy()
-            self.known_detections.clear()
+        if len(self._known_detections):
+            self._known_detections.sort(key=lambda x: x.w * x.h, reverse=True)
+            previous_known_detections = self._known_detections.copy()
+            self._known_detections.clear()
 
             for detection, found, best_rect, matching_rects in self._union_over_intersection(
                     remaining_rects, previous_known_detections
@@ -140,15 +141,15 @@ class BaseObjectTracker(ABC):
                 if found:
                     detection._correct_and_update_position(best_rect)
                     detection._reinforce()
-                    self.known_detections.append(detection)
+                    self._known_detections.append(detection)
                 else:
                     detection._fade()
                     if np.floor(detection._confidence) > 0:
-                        self.known_detections.append(detection)
+                        self._known_detections.append(detection)
                 for rect in matching_rects:
                     remaining_rects.remove(rect)
         for rect in remaining_rects:
-            self.known_detections.append(Detection(rect))
+            self._known_detections.append(Detection(rect))
 
     def display_detections(self, rect_color=(0, 255, 0), trajectory_color=(0, 0, 255)) -> np.ndarray:
         """
@@ -158,8 +159,9 @@ class BaseObjectTracker(ABC):
         :return: image
         """
         frame_contours = self.frame.copy()
-        for detection in self.known_detections:
-            detection.draw(frame_contours, rect_color, trajectory_color)
+        for detection in self._known_detections:
+            if detection._has_sufficient_confidence():
+                detection.draw(frame_contours, rect_color, trajectory_color)
         return frame_contours
 
     @staticmethod
@@ -199,8 +201,8 @@ class BaseObjectTracker(ABC):
         Closes cv2 windows and the video writer
         :return:
         """
-        if self.writer is not None:
-            self.writer.release()
+        if self._writer is not None:
+            self._writer.release()
         cv2.destroyAllWindows()
 
     def run_from_file(self, footage_path: str) -> Generator[list[Detection], None, None]:

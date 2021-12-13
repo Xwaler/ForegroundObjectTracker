@@ -9,6 +9,8 @@ class Detection:
     """
 
     def __init__(self, rect):
+        self.x, self.y, self.w, self.h = rect
+
         self._KALMAN_PROCESS_NOISE_COV = 1E-5
         self._KALMAN_MEASUREMENT_NOISE_COV = 1E-1
         self._KALMAN_ERROR_COV = 1E-1
@@ -16,10 +18,8 @@ class Detection:
         self._DETECTION_TRAJECTORY_MIN_CONFIDENCE = 10
         self._DETECTION_FADING_RATE = 0.2
 
-        self.x, self.y, self.w, self.h = rect
         self._confidence = 2.
         self._kalman = cv2.KalmanFilter(8, 4, 0)
-
         self._init_kalman()
 
     def _init_kalman(self):
@@ -106,8 +106,9 @@ class Detection:
         """
         Predict the detection's position, size, speed and acceleration for the future n steps
         :param steps:
-        :return: Prediction in the form [[x, y, w, h, vx, vy, ax, ay]]
+        :return: Prediction in the form [[x, y, w, h, vx, vy, ax, ay], ...]
         """
+        assert steps >= 0
         state = self._kalman.statePost.ravel()
         predictions = [state, ]
         for _ in range(steps):
@@ -116,16 +117,22 @@ class Detection:
         return predictions
 
     def draw(self, img: np.ndarray, rect_color: tuple[int, int, int], trajectory_color: tuple[int, int, int]) -> None:
-        if self._has_sufficient_confidence():
-            cv2.rectangle(img, *self.get_rect(), color=rect_color, thickness=2)
+        """
+        Draw this detection's rectangle and trajectory
+        :param img: destination image
+        :param rect_color:
+        :param trajectory_color:
+        :return:
+        """
+        cv2.rectangle(img, *self.get_rect(), color=rect_color, thickness=2)
 
-            if np.ceil(self._confidence) >= self._DETECTION_TRAJECTORY_MIN_CONFIDENCE:
-                predictions = self.predict(steps=10)
-                for i in range(len(predictions) - 1):
-                    state = predictions[i]
-                    nextState = predictions[i + 1]
-                    cv2.line(img, np.round(state[:2]).astype(int), np.round(nextState[:2]).astype(int),
-                             trajectory_color, 2)
+        if np.ceil(self._confidence) >= self._DETECTION_TRAJECTORY_MIN_CONFIDENCE:
+            predictions = self.predict(steps=10)
+            for i in range(len(predictions) - 1):
+                state = predictions[i]
+                nextState = predictions[i + 1]
+                cv2.line(img, np.round(state[:2]).astype(int), np.round(nextState[:2]).astype(int),
+                         trajectory_color, 2)
 
     def __repr__(self):
         return f'Detection(x={self.x}, y={self.y}, h={self.w}, w={self.h})'
