@@ -155,7 +155,7 @@ class BaseObjectTracker(ABC):
         return self._frame.copy()
 
     def getPreviousFrame(self):
-        return self._frame.copy()
+        return self._previous_frame.copy()
 
     def display_detections(self, rect_color=(0, 255, 0), trajectory_color=(0, 0, 255)) -> np.ndarray:
         """
