@@ -45,8 +45,8 @@ class BaseObjectTracker(ABC):
         self._filters = None
         self._known_detections = []
 
-        self.frame = None
-        self.previous_frame = None
+        self._frame = None
+        self._previous_frame = None
 
     @staticmethod
     def _frame_generator(file):
@@ -89,7 +89,7 @@ class BaseObjectTracker(ABC):
             else []
 
     def _display_contours(self, contours):
-        frame_contours = self.frame.copy()
+        frame_contours = self._frame.copy()
         for contour in contours:
             cv2.drawContours(frame_contours, [contour], 0, 255, -1)
         return frame_contours
@@ -98,7 +98,7 @@ class BaseObjectTracker(ABC):
     def _get_bounding_rects(contours):
         return [cv2.boundingRect(c) for c in contours]
 
-    def _union_over_intersection(self, rects, previous_known_detections):
+    def _intersection_over_union(self, rects, previous_known_detections):
         for detection in previous_known_detections:
             area0 = detection.w * detection.h
             max_iou = 0
@@ -135,7 +135,7 @@ class BaseObjectTracker(ABC):
             previous_known_detections = self._known_detections.copy()
             self._known_detections.clear()
 
-            for detection, found, best_rect, matching_rects in self._union_over_intersection(
+            for detection, found, best_rect, matching_rects in self._intersection_over_union(
                     remaining_rects, previous_known_detections
             ):
                 if found:
@@ -151,6 +151,12 @@ class BaseObjectTracker(ABC):
         for rect in remaining_rects:
             self._known_detections.append(Detection(rect))
 
+    def getFrame(self):
+        return self._frame.copy()
+
+    def getPreviousFrame(self):
+        return self._frame.copy()
+
     def display_detections(self, rect_color=(0, 255, 0), trajectory_color=(0, 0, 255)) -> np.ndarray:
         """
         Returns the actual frame with a detection overlay
@@ -158,7 +164,7 @@ class BaseObjectTracker(ABC):
         :param trajectory_color:
         :return: image
         """
-        frame_contours = self.frame.copy()
+        frame_contours = self._frame.copy()
         for detection in self._known_detections:
             if detection._has_sufficient_confidence():
                 detection.draw(frame_contours, rect_color, trajectory_color)
@@ -212,8 +218,8 @@ class BaseObjectTracker(ABC):
         :return: Generator of detections for all the frames in the video
         """
         assert os.path.exists(footage_path), f"File not found: {footage_path}"
-        for self.frame in self._frame_generator(footage_path):
-            yield self.forward(self.frame)
+        for self._frame in self._frame_generator(footage_path):
+            yield self.forward(self._frame)
         self.cv_cleanup()
 
     @abstractmethod

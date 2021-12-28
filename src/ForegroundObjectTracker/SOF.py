@@ -26,8 +26,8 @@ class SOF(BaseObjectTracker):
         self._RANSAC_PROJECTION_THRESHOLD = 10.
 
     def _apply_sparse_optical_flow(self, points_to_track):
-        previous_gray = cv2.cvtColor(self.previous_frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        previous_gray = cv2.cvtColor(self._previous_frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(self._frame, cv2.COLOR_BGR2GRAY)
 
         if len(points_to_track) >= 4:
             next_, status, error = cv2.calcOpticalFlowPyrLK(
@@ -49,10 +49,10 @@ class SOF(BaseObjectTracker):
 
     def forward(self, frame):
         assert frame is not None, "Frame is None"
-        self.frame = frame
-        if self.previous_frame is None:
-            self.previous_frame = self.frame
-            h, w = self.frame.shape[:2]
+        self._frame = frame
+        if self._previous_frame is None:
+            self._previous_frame = self._frame
+            h, w = self._frame.shape[:2]
             self._filters = np.ceil([
                 self._CONTOUR_MIN_WIDTH_RATIO * w,
                 self._CONTOUR_MAX_WIDTH_RATIO * w,
@@ -81,7 +81,7 @@ class SOF(BaseObjectTracker):
             frame_detections = self.display_detections()
             if self._DISPLAY == DISPLAY_DEBUG:
                 labeled_images = self._add_labels([
-                    self.frame,
+                    self._frame,
                     cv2.cvtColor(corrected_frame, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(morphology, cv2.COLOR_GRAY2BGR),
@@ -108,5 +108,5 @@ class SOF(BaseObjectTracker):
                 if cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
-        self.previous_frame = self.frame
+        self._previous_frame = self._frame
         return [detection for detection in self._known_detections if detection._has_sufficient_confidence()]

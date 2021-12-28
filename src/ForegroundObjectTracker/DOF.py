@@ -21,18 +21,18 @@ class DOF(BaseObjectTracker):
         }
 
     def _apply_dense_optical_flow(self):
-        previous_gray_frame = cv2.cvtColor(self.previous_frame, cv2.COLOR_BGR2GRAY)
-        gray_frame = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
+        previous_gray_frame = cv2.cvtColor(self._previous_frame, cv2.COLOR_BGR2GRAY)
+        gray_frame = cv2.cvtColor(self._frame, cv2.COLOR_BGR2GRAY)
         flow = cv2.calcOpticalFlowFarneback(previous_gray_frame, gray_frame, None, **self._FF_PARAMS)
         magnitude, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
         return cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
     def forward(self, frame):
         assert frame is not None, "Frame is None"
-        self.frame = frame
-        if self.previous_frame is None:
-            self.previous_frame = self.frame
-            h, w = self.frame.shape[:2]
+        self._frame = frame
+        if self._previous_frame is None:
+            self._previous_frame = self._frame
+            h, w = self._frame.shape[:2]
             self._filters = np.ceil([
                 self._CONTOUR_MIN_WIDTH_RATIO * w,
                 self._CONTOUR_MAX_WIDTH_RATIO * w,
@@ -57,7 +57,7 @@ class DOF(BaseObjectTracker):
             frame_detections = self.display_detections()
             if self._DISPLAY == DISPLAY_DEBUG:
                 labeled_images = self._add_labels([
-                    self.frame,
+                    self._frame,
                     cv2.cvtColor(flow, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(morphology, cv2.COLOR_GRAY2BGR),
@@ -84,5 +84,5 @@ class DOF(BaseObjectTracker):
                 if cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
-        self.previous_frame = self.frame
+        self._previous_frame = self._frame
         return [detection for detection in self._known_detections if detection._has_sufficient_confidence()]

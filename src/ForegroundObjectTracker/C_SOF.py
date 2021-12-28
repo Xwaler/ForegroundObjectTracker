@@ -32,10 +32,10 @@ class C_SOF(SOF):
 
     def forward(self, frame):
         assert frame is not None, "Frame is None"
-        self.frame = frame
-        if self.previous_frame is None:
-            self.previous_frame = self.frame
-            h, w = self.frame.shape[:2]
+        self._frame = frame
+        if self._previous_frame is None:
+            self._previous_frame = self._frame
+            h, w = self._frame.shape[:2]
             self._compute_sparse_points_to_track(w, h)
             self._filters = np.ceil([
                 self._CONTOUR_MIN_WIDTH_RATIO * w,
@@ -64,7 +64,7 @@ class C_SOF(SOF):
             frame_detections = self.display_detections()
             if self._DISPLAY == DISPLAY_DEBUG:
                 labeled_images = self._add_labels([
-                    self.frame,
+                    self._frame,
                     cv2.cvtColor(corrected_frame, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR),
                     cv2.cvtColor(morphology, cv2.COLOR_GRAY2BGR),
@@ -91,5 +91,5 @@ class C_SOF(SOF):
                 if cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
-        self.previous_frame = self.frame
+        self._previous_frame = self._frame
         return [detection for detection in self._known_detections if detection._has_sufficient_confidence()]

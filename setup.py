@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="ForegroundObjectTracker",
-    version="1.0.6",
+    version="1.0.7",
     author="Benjamin MONSERAND",
     author_email="benjamin.monserand@utbm.fr",
     url='https://github.com/Xwaler/ForegroundObjectTracker',
@@ -14,9 +14,9 @@ setuptools.setup(
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.0",
+    python_requires=">=3.8",
     install_requires=[
-        "opencv-python",
-        "numpy",
+        "opencv-python>=4.5",
+        "numpy>=1.20",
     ]
 )
