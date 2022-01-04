@@ -4,9 +4,9 @@ import numpy as np
 from .SOF import SOF, DISPLAY_OVERLAY, DISPLAY_DEBUG
 
 
-class C_SOF(SOF):
+class DSOF(SOF):
     """
-    Custom Sparse Optical Flow
+    Dominant Sparse Optical Flow
     """
     def __init__(self, display=DISPLAY_OVERLAY, write_footage=False):
         super().__init__(display, write_footage)
@@ -87,7 +87,7 @@ class C_SOF(SOF):
 
             if self._DISPLAY:
                 resized = self._resize_with_aspect_ratio(processed_frame, width=self._DISPLAY_WINDOW_WIDTH)
-                cv2.imshow('Custom Sparse Optical Flow', resized)
+                cv2.imshow('Dominant Sparse Optical Flow', resized)
                 if cv2.waitKey(1) in [27, ord('q'), ord('Q')]:
                     exit()
 
